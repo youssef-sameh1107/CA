@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MEM_SIZE 1024
+
 
 // Instruction memory (externally accessible)
-extern short int instruction_memory[MEM_SIZE];
+extern short int instruction_memory[1024];
 extern int current_address;
 extern int instruction_count;
 

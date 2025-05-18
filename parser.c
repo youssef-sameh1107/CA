@@ -16,15 +16,15 @@ typedef enum {
     OP_ADD = 0,    // 0000
     OP_SUB,        // 0001
     OP_MUL,        // 0010
-    OP_LDI,       // 0011 (LDI in original table)
+    OP_LDI,       // 0011 
     OP_BEQZ,       // 0100
     OP_AND,        // 0101
     OP_OR,         // 0110
     OP_JR,         // 0111
     OP_SLC,        // 1000
     OP_SRC,        // 1001
-    OP_LB,        // 1010 (LB in original)
-    OP_SB         // 1011 (SB in original)
+    OP_LB,        // 1010
+    OP_SB         // 1011 
 } Opcode;
 
 const char* opcode_names[] = {
@@ -103,40 +103,7 @@ void parse_instruction(const char *instr_str) {
     }
 }
 
-// Print memory contents (for debugging)
-void print_memory() {
-    printf("Memory Contents:\n");
-    printf("Addr  | Binary           | Opcode | Op1  | Op2  | Instruction\n");
-    printf("------|------------------|--------|------|------|------------\n");
-    
-    for (int i = 0; i < current_address; i++) {
-        uint16_t instr = instruction_memory[i];
-        
-        // Extract components
-        uint8_t opcode = (instr >> 12) & 0xF;
-        uint8_t op1 = (instr >> 6) & 0x3F;
-        uint8_t op2 = instr & 0x3F;
-        
-        // Determine if R-format or I-format
-        int is_r_format = (opcode <= OP_JR && opcode != OP_BEQZ && opcode != OP_LDI); // JR is last R-format instruction
-        
-        printf("0x%03X | %04X (%016b) | %-6s | R%-3d | ", 
-               i, instr, instr, 
-               opcode_names[opcode], op1);
-        
-        if (is_r_format) {
-            printf("R%-3d | %s R%d R%d\n", op2, opcode_names[opcode], op1, op2);
-        } else {
-            // For I-format, print immediate (sign-extended for BEQZ)
-            int imm = op2;
-            if ( (imm & 0x20)) {
-                imm |= 0xFFFFFFC0; // Sign extend 6-bit to 32-bit
-            }
-            printf("%-5d | %s R%d %d\n", 
-                   imm, opcode_names[opcode], op1, imm);
-        }
-    }
-}
+
 
 
 void load_program_from_file(const char *filename) {
@@ -152,6 +119,10 @@ void load_program_from_file(const char *filename) {
         line[strcspn(line, "\n")] = '\0';
         parse_instruction(line);
     }
+    for(int i = current_address; i < 1024; i++){
+        instruction_memory[i] = -1;
+    }
+   
 
     fclose(file);
 }
