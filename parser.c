@@ -2,69 +2,157 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
 #include "memory.h"
 
-instruction_memory[];
 
-void parse(char filename[]) {
-    FILE *file = fopen("program.txt", "r");
-    if (file == NULL) {
-        printf("Could not open file.\n");
+
+short int instruction_memory[1024];  
+int instruction_count = 0;
+
+
+
+typedef enum {
+    OP_ADD = 0,    // 0000
+    OP_SUB,        // 0001
+    OP_MUL,        // 0010
+    OP_LDI,       // 0011 (LDI in original table)
+    OP_BEQZ,       // 0100
+    OP_AND,        // 0101
+    OP_OR,         // 0110
+    OP_JR,         // 0111
+    OP_SLC,        // 1000
+    OP_SRC,        // 1001
+    OP_LB,        // 1010 (LB in original)
+    OP_SB         // 1011 (SB in original)
+} Opcode;
+
+const char* opcode_names[] = {
+    "ADD", "SUB", "MUL", "LDI",
+    "BEQZ", "AND", "OR", "JR",
+    "SLC", "SRC", "LB", "SB"
+};
+
+// Instruction memory (16-bit words)
+
+int current_address = 0;  // Tracks next available memory location
+
+// Helper: Convert register string (e.g., "R5") to 6-bit binary index
+int parse_register(const char *reg_str) {
+    int reg_num;
+    sscanf(reg_str, "R%d", &reg_num);
+    return reg_num;
+
+}
+
+// Helper: Convert immediate string (e.g., "5" or "-2") to 6-bit 2's complement
+int parse_immediate(const char *imm_str) {
+    int imm = atoi(imm_str);
+    return imm & 0x3F;  // 6-bit 2's complement
+    
+}
+
+void parse_instruction(const char *instr_str) {
+    char op[10], arg1[10], arg2[10];
+    int opcode, r1, r2, imm;
+
+    // Tokenize instruction
+    int num_args = sscanf(instr_str, "%s %s %s", op, arg1, arg2);
+
+    // Determine opcode
+    if (strcmp(op, "ADD") == 0)      opcode = OP_ADD;
+    else if (strcmp(op, "SUB") == 0) opcode = OP_SUB;
+    else if (strcmp(op, "MUL") == 0) opcode = OP_MUL;
+    else if (strcmp(op, "LDI") == 0) opcode = OP_LDI;
+    else if (strcmp(op, "BEQZ") == 0) opcode = OP_BEQZ;
+    else if (strcmp(op, "AND") == 0) opcode = OP_AND;
+    else if (strcmp(op, "OR") == 0)  opcode = OP_OR;
+    else if (strcmp(op, "JR") == 0)  opcode = OP_JR;
+    else if (strcmp(op, "SLC") == 0) opcode = OP_SLC;
+    else if (strcmp(op, "SRC") == 0) opcode = OP_SRC;
+    else if (strcmp(op, "LB") == 0)  opcode = OP_LB;
+    else if (strcmp(op, "SB") == 0)  opcode = OP_SB;
+
+    switch (opcode) {
+        // R-Format Instructions (OP | R1 | R2)
+        case OP_ADD:
+        case OP_SUB:
+        case OP_MUL:
+        case OP_AND:
+        case OP_OR:
+        case OP_JR:
+            r1 = parse_register(arg1);
+            r2 = parse_register(arg2);
+            instruction_memory[current_address++] = (opcode << 12) | (r1 << 6) | r2;
+            break;
+
+        // I-Format Instructions (OP | R1 | IMM)
+        case OP_LDI:
+        case OP_BEQZ:
+        case OP_SLC:
+        case OP_SRC:
+        case OP_LB:
+        case OP_SB:
+            r1 = parse_register(arg1);
+            imm = parse_immediate(arg2);
+            instruction_memory[current_address++] = (opcode << 12) | (r1 << 6) | imm;
+            break;
+
+        default:
+            fprintf(stderr, "Unhandled opcode: %d\n", opcode);
     }
-    char line[256];
-    char mnemonic[10], op1[10], op2[10];
-    int j = 0;
-    while (fgets(line, sizeof(line), file)){
-        sscanf(line, "%s %s %s", mnemonic, op1, op2); //opcode R12 Imm/R2        
-        char type = 'R';
-        short int instruction; 
-        if(strcmp(mnemonic,"ADD")){
-            instruction = 0x0000;
-        }if(strcmp(mnemonic,"SUB")){
-            instruction = 0x1000;
-        }if(strcmp(mnemonic,"MUL")){
-            instruction = 0x2000;
-        }if(strcmp(mnemonic,"LDI")){
-            instruction = 0x3000;
-            type = 'I';
-        }if(strcmp(mnemonic,"BEQZ")){
-             instruction = 0x4000;
-             type = 'I';
-        }if(strcmp(mnemonic,"AND")){
-             instruction = 0x5000;
-        }if(strcmp(mnemonic,"OR")){
-             instruction = 0x6000;
-        }if(strcmp(mnemonic,"JR")){
-             instruction = 0x7000;
-        }if(strcmp(mnemonic,"SLC")){
-             instruction = 0x8000;
-             type = 'I';
-        }if(strcmp(mnemonic,"SRC")){
-             instruction = 0x9000;
-             type = 'I';
-        }if(strcmp(mnemonic,"LB")){
-             instruction = 0xA000;
-             type = 'I';
-        }if(strcmp(mnemonic,"SB")){
-             instruction = 0xB000;
-             type = 'I';
-        }     
-        short int  num1;
-        memmove(op1, op1 + 1, strlen(op1)); //12
-        sscanf(op1, "%d", &num1); 
-        //i have the number the register now i need to store that value into the instruction
-        //so lets say the number is 61 then i need the isntruction to be "0010" opcode then 6 bits to store 
-        // num is an int so its 32 thats good i can shift it upwards by 6? so it would become 000000(6 bits of value)000000
-        instruction = (num1 << 6) | instruction; //0000()
-        char num2; 
-        if(type == 'I'){
-            sscanf(op2, "%d", &num2);
-            instruction = instruction | num2; 
-        }else{
-            memmove(op2, op2 + 1, strlen(op2));//-12
-            sscanf(op2, "%d", &num2);
-            instruction = instruction | num2; 
+}
+
+// Print memory contents (for debugging)
+void print_memory() {
+    printf("Memory Contents:\n");
+    printf("Addr  | Binary           | Opcode | Op1  | Op2  | Instruction\n");
+    printf("------|------------------|--------|------|------|------------\n");
+    
+    for (int i = 0; i < current_address; i++) {
+        uint16_t instr = instruction_memory[i];
+        
+        // Extract components
+        uint8_t opcode = (instr >> 12) & 0xF;
+        uint8_t op1 = (instr >> 6) & 0x3F;
+        uint8_t op2 = instr & 0x3F;
+        
+        // Determine if R-format or I-format
+        int is_r_format = (opcode <= OP_JR && opcode != OP_BEQZ && opcode != OP_LDI); // JR is last R-format instruction
+        
+        printf("0x%03X | %04X (%016b) | %-6s | R%-3d | ", 
+               i, instr, instr, 
+               opcode_names[opcode], op1);
+        
+        if (is_r_format) {
+            printf("R%-3d | %s R%d R%d\n", op2, opcode_names[opcode], op1, op2);
+        } else {
+            // For I-format, print immediate (sign-extended for BEQZ)
+            int imm = op2;
+            if ( (imm & 0x20)) {
+                imm |= 0xFFFFFFC0; // Sign extend 6-bit to 32-bit
+            }
+            printf("%-5d | %s R%d %d\n", 
+                   imm, opcode_names[opcode], op1, imm);
         }
-        instruction_memory[j] = instruction;
-        j++;
     }
+}
+
+
+void load_program_from_file(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    char line[40];
+    while (fgets(line, sizeof(line), file)) {
+        instruction_count++;
+        line[strcspn(line, "\n")] = '\0';
+        parse_instruction(line);
+    }
+
+    fclose(file);
+}
+

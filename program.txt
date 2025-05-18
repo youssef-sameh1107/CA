@@ -1,0 +1,5 @@
+LDI R4 3
+LDI R2 2
+MUL R4 R2        
+SUB R5 R1        
+JR R7 R8        
