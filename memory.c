@@ -12,13 +12,46 @@ void print_binary(uint32_t x, int width) {
     }
 }
 
+const char* instruction_to_string(short int instruction) {
+    static char buffer[20];  // Static buffer to hold the string
+    
+    uint8_t opcode = (instruction >> 12) & 0xF;
+    uint8_t r1 = (instruction >> 6) & 0x3F;
+    uint8_t r2_or_imm = instruction & 0x3F;
+    
+    // Handle R-format instructions (ADD, SUB, MUL, AND, OR, JR)
+    if (opcode <= OP_JR && opcode != OP_BEQZ && opcode != OP_LDI) {
+        snprintf(buffer, sizeof(buffer), "%s R%d R%d", 
+                opcode_names[opcode], r1, r2_or_imm);
+    }
+    // Handle I-format instructions (LDI, BEQZ, SLC, SRC, LB, SB)
+    else {
+        // Sign-extend the immediate for BEQZ
+        int imm = r2_or_imm;
+        if ((imm & 0x20)) {
+            imm |= 0xFFFFFFC0;
+        }
+        
+        // Special case for LDI (some assemblers use MOVI)
+        if (opcode == OP_LDI) {
+            snprintf(buffer, sizeof(buffer), "LDI R%d %d", r1, imm);
+        }
+        else {
+            snprintf(buffer, sizeof(buffer), "%s R%d %d", 
+                    opcode_names[opcode], r1, imm);
+        }
+    }
+    
+    return buffer;
+}
+
 void log_stage(const char* name, short int instr, short int pc, char fields[4], bool ctrls[5], bool valid) {
     printf("[%s]: ", name);
     if (!valid) {
         printf("No valid instruction\n");
         return;
     }
-    printf("Instruction=0x%04x\n", instr);
+    printf("Instruction=0x%04x  %s\n", instr, instruction_to_string(instr));
     printf("Inputs: PC=%d OPC=%d R1=%d R2=%d IMM=%d ", pc, fields[0], fields[1], fields[2], fields[3]);
     printf("C=%d V=%d N=%d S=%d Z=%d\n", ctrls[0], ctrls[1], ctrls[2], ctrls[3], ctrls[4]);
     printf("Outputs: ");
@@ -321,6 +354,13 @@ void print_final_state() {
     }
 }
 
+
+
+void final_print(){
+    print_final_state();
+    printf("\n=== Simulation Complete ===\n");
+}
+
 int main(void) {
    
     load_program_from_file("program.txt");
@@ -330,8 +370,9 @@ int main(void) {
         
     }
 
-    print_binary(PC,16);
-    printf("\n %d \n",PC);
+    final_print();
+
+    return 0;
 
     return 0;
 }
