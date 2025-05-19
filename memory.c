@@ -49,13 +49,13 @@ void log_stage(const char* name, short int instr, short int pc, char fields[4], 
         return;
     }
     printf("Instruction=0x%04x  %s\n\n", instr, instruction_to_string(instr));
-    printf("Inputs: PC=%d OPC=%d R1=%d R2=%d IMM=%d ", pc, fields[0], fields[1], fields[2], fields[3]);
+    printf("Inputs: PC=%d OPC=%d First_Reg=%d Second_Reg=%d Immediate=%d ", pc, fields[0], fields[1], fields[2], fields[3]);
     printf("C=%d V=%d N=%d S=%d Z=%d\n\n", ctrls[0], ctrls[1], ctrls[2], ctrls[3], ctrls[4]);
     printf("Outputs: ");
     if (strcmp(name, "FETCH") == 0) {
         printf("Instruction=0x%04x, Next PC=%d\n\n", instr, pc);
     } else if (strcmp(name, "DECODE") == 0) {
-        printf("OPC=%d, R1=%d, R2=%d, IMM=%d, C=%d, V=%d, N=%d, S=%d, Z=%d\n\n",
+        printf("OPC=%d, First_Reg=%d, Second_Reg=%d, Immediate=%d, C=%d, V=%d, N=%d, S=%d, Z=%d\n\n",
                fields[0], fields[1], fields[2], fields[3], ctrls[0], ctrls[1], ctrls[2], ctrls[3], ctrls[4]);
     } else if (strcmp(name, "EXECUTE") == 0) {
         printf("Updated flags: C=%d, V=%d, N=%d, S=%d, Z=%d\n\n", ctrls[0], ctrls[1], ctrls[2], ctrls[3], ctrls[4]);
@@ -85,6 +85,7 @@ short int PC = 0;
 
 void fetch() {
     if (instruction_memory[PC] == -1) {
+        fetch_valid = false;
         return;
     }
     short int instruction = 0;
@@ -168,7 +169,7 @@ void execute() {
         log_stage("EXECUTE", IDIEINST, IDIEPC, IDIE, new_ctrls, false);
         return;
     }
-
+printf("[EXECUTE]: ");
     char temp = 0;
     char opcode = IDIE[0];
     char reg1adr = IDIE[1];
@@ -224,6 +225,7 @@ void execute() {
             reg1 = reg1 * reg2;
             N = (reg1 & 128) ? 1 : 0;
             Z = (reg1 == 0) ? 1 : 0;
+            GPR[reg1adr] = reg1;
             printf("Result: %d \n\n", reg1);
             printf("[EXECUTE]: Updated GPR[R%d] = %d\n\n", reg1adr, reg1);
             break;
@@ -330,7 +332,7 @@ void print_final_state() {
     printf("\n\n=== Final State ===\n\n");
     printf("Registers:\n\n");
     for (int i = 0; i < 64; i++) {
-        printf("R%-2d = %3d (0x%02x)\n\n", i, (int8_t)GPR[i], (uint8_t)GPR[i]);
+        printf("R%-2d = %3d (0x%02x)\n", i, (int8_t)GPR[i], (uint8_t)GPR[i]);
     }
     printf("PC  = %d (0x%04x)\n\n", PC, PC);
     printf("SREG = ");
@@ -341,14 +343,14 @@ void print_final_state() {
     printf("\n\nInstruction Memory (non-zero locations):\n\n");
     for (int i = 0; i < 1024; i++) {
         if (instruction_memory[i] != -1) {
-            printf("instruction_memory[%d] = 0x%04x\n\n", i, instruction_memory[i]);
+            printf("instruction_memory[%d] = 0x%04x\n", i, instruction_memory[i]);
         }
     }
 
     printf("\n\nData Memory (non-zero locations):\n\n");
     for (int i = 0; i < 2048; i++) {
         if (data_memory[i] != 0) {
-            printf("data_memory[%d] = %d (0x%02x)\n\n", i, (int8_t)data_memory[i], (uint8_t)data_memory[i]);
+            printf("data_memory[%d] = %d (0x%02x)\n", i, (int8_t)data_memory[i], (uint8_t)data_memory[i]);
         }
     }
 }
